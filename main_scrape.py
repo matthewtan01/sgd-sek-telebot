@@ -8,9 +8,9 @@ from telegram.ext import CommandHandler, CallbackContext, Application, ContextTy
 
 load_dotenv()
 telegram_bot_token = os.getenv("bot_token").strip()
-scrape_url = os.getenv("scrape_url").strip()
-subscribed_users = set()
 
+scrape_url = "https://wise.com/us/currency-converter/sgd-to-sek-rate?amount=1"
+subscribed_users = set()
 
 def scrape_swedish_data():
     response = requests.get(scrape_url)
