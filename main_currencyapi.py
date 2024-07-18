@@ -1,27 +1,28 @@
 import os
 import requests
 from dotenv import load_dotenv
-from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext, Application, ContextTypes
 
 
 load_dotenv()
+currency_api = os.getenv("currency_api").strip()
 telegram_bot_token = os.getenv("bot_token").strip()
-scrape_url = os.getenv("scrape_url").strip()
 subscribed_users = set()
 
 
-def scrape_swedish_data():
-    response = requests.get(scrape_url)
-    soup = BeautifulSoup(response.text, features="html.parser")
-    swedish_input_field = soup.find('span', class_="text-success")
-    return swedish_input_field.text
+def get_swedish_data():
+    url = f'https://api.currencyapi.com/v3/latest?apikey={currency_api}&currencies=SEK&base_currency=SGD'
+    r = requests.get(url)
+    data = r.json()
+    exchange_rate = data["data"]["SEK"]["value"]
+    exchange_rate = round(float(exchange_rate), 4)
+    return exchange_rate
 
 
 async def send_announcement(context: ContextTypes.DEFAULT_TYPE):
     print("Sending annoucement")
-    exchange_rate = scrape_swedish_data()
+    exchange_rate = get_swedish_data()
     text = f"1 SGD equals to {exchange_rate} SEK"
     for chat_id in subscribed_users:
         url = f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage?chat_id={chat_id}&text={text}"
@@ -33,9 +34,9 @@ async def subscribe(update: Update, context: CallbackContext):
     print(f"{update.message.chat_id} subscribe")
     if chat_id not in subscribed_users:
         subscribed_users.add(chat_id)
-        rate = scrape_swedish_data()
         await update.message.reply_text("You have subscribed to receive announcements.")
-        await update.message.reply_text(f"1 SGD equals to {rate} SEK")
+        exchange_rate = get_swedish_data()
+        await update.message.reply_text(f"1 SGD equals to {exchange_rate} SEK")
     else:
         await update.message.reply_text("You are already subscribed to receive annoucements.")
 
@@ -66,7 +67,7 @@ def main():
     app.add_handler(CommandHandler('unsubscribe', unsubscribe))
 
     # Schedule the announcement every 6 hours
-    app.job_queue.run_repeating(send_announcement, interval=4*3600, first=0)
+    app.job_queue.run_repeating(send_announcement, interval=6*3600, first=0)
 
     # Start polling
     app.run_polling(poll_interval=3)
